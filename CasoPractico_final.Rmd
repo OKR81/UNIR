@@ -1,0 +1,396 @@
+---
+title: "Resolución Actividad 1 máster Bioinformática UNIR (2023)"
+author: "Consuelo Azaña García"
+date: "2024-06-18"
+output: 
+    html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    collapsed: true
+    smooth_scroll: true
+    theme: journal
+    highlight: kate
+    df_print: paged
+    code_folding: show
+      
+      
+---
+
+## Preparación del entorno de trabajo
+Primero, limpiamos el entorno de trabajo para asegurarnos de que no haya datos ni objetos de sesiones anteriores que puedan interferir con nuestro análisis.
+```{r message=FALSE, warning=FALSE}
+#Borrar el entorno de trabajo
+rm(list=ls())
+```
+
+## Cargar las librerías necesarias
+Para realizar nuestro análisis, necesitaremos varias librerías que facilitan la manipulación de datos, la creación de gráficos y la realización de pruebas estadísticas.
+
+```{r message=FALSE, warning=FALSE}
+# Cargar librerías necesarias
+library(ggplot2)     # Para gráficos 2D
+library(plotly)      # Para gráficos 3D
+library(readr)       # Para leer archivos CSV
+library(stats)       # Para realizar PCA
+library(factoextra)  # Para eigenvalue y visualización de PCA
+library(dplyr)       # Para manipulación de datos
+library(nortest)     # Para pruebas de normalidad
+library(gtsummary)   # Para tablas resumen
+```
+
+## Cargar y verificar los datos
+A continuación, cargamos los datos desde un archivo CSV y realizamos una verificación inicial para detectar valores NA.
+```{r message=FALSE, warning=FALSE}
+# Cargar la base de datos
+datos <- read.csv("mubio02_act3_alimentos_nutrientes_4900.csv")
+
+# Ver los datos cargados
+View(datos)
+
+# Verificar si hay valores NA
+any(is.na(datos)) # Retorna TRUE si hay valores NA
+
+# Contar valores NA en cada columna
+colSums(is.na(datos))
+```
+
+### Limpieza de datos
+Eliminamos las filas con valores NA para asegurarnos de que nuestro análisis se realice sobre datos completos.
+```{r message=FALSE, warning=FALSE}
+# Eliminar filas con valores NA
+datos_limpios <- datos[complete.cases(datos),]
+
+# Verificar nuevamente si hay valores NA
+any(is.na(datos_limpios)) # Debería retornar FALSE
+
+# Ver los datos limpios
+View(datos_limpios)
+```
+
+### Comprobación de la normalidad
+Para cada variable en nuestros datos limpios, realizaremos una prueba de normalidad y registraremos los p-values.
+```{r message=FALSE, warning=FALSE}
+# Cromprobar la normalidad de los datos
+pvalor <- matrix(NA, nrow=ncol(datos_limpios), ncol=1) # Crear una matriz para registrar los p values
+```
+
+### Normalización de los datos
+Una vez comprobada la normalidad, procedemos a normalizar los datos numéricos para prepararlos para análisis posteriores.
+
+```{r message=FALSE, warning=FALSE}
+# Normalizar todos los datos numéricos
+datos_limpios_norm <- datos_limpios %>% 
+  mutate(across(where(is.numeric), scale))
+
+View(datos_limpios_norm)
+
+dim(datos_limpios_norm)
+```
+
+### Visualización de los Datos Normalizados
+Para comenzar, visualizamos las primeras filas de los datos normalizados para tener una idea preliminar de cómo se ven después de la normalización
+
+```{r message=FALSE, warning=FALSE}
+head(datos_limpios_norm)
+```
+Luego, para una inspección más detallada, abrimos los datos normalizados en una vista más amplia.
+
+```{r}
+View(datos_limpios_norm)
+```
+### Extracción de Nutrientes y Alimentos
+A continuación, extraemos las columnas específicas que contienen información sobre nutrientes y alimentos. Esto se hace seleccionando las columnas desde la 28 hasta la última columna del conjunto de datos normalizados.
+```{r}
+datos_alimentos <- datos_limpios_norm[ ,28:length(names(datos_limpios_norm))]
+```
+Para tener una referencia del tamaño original del conjunto de datos, verificamos el número de filas.
+```{r}
+nrow(datos)
+```
+Y también verificamos las dimensiones del nuevo conjunto de datos que contiene solo la información de nutrientes y alimentos.
+```{r}
+dim(datos_alimentos)
+```
+
+
+
+# Análisis de Componentes Principales (PCA) de Nutrientes y Alimentos
+Procedemos a realizar un PCA sobre el conjunto de datos de nutrientes y alimentos para reducir la dimensionalidad y extraer las principales fuentes de variación.
+```{r}
+pca <- prcomp(datos_alimentos)
+```
+Verificamos el número de filas en los resultados del PCA para entender la estructura de los datos transformados.
+```{r}
+nrow(pca$x)
+```
+## Resumen del PCA
+Imprimimos un resumen del PCA para obtener una visión general de los resultados, incluyendo la varianza explicada por cada componente principal.
+```{r}
+print(summary(pca))
+```
+### Valores Propios (Eigenvalues)
+Obtenemos los valores propios del PCA para evaluar la importancia de cada componente principal. 
+```{r}
+eigenvalues <- get_eigenvalue(pca)
+```
+Imprimimos los valores propios para verificar que con las primeras dos dimensiones se explica más del 60-70% de la varianza acumulada, lo cual es un criterio común para la selección de componentes.
+```{r}
+print(eigenvalues)
+```
+### Visualización de la Varianza Explicada
+Realizamos una comprobación visual de la varianza explicada por cada componente principal para ayudar en la interpretación de los resultados.
+```{r}
+fviz_eig(pca, addlabels = TRUE, ylim = c(0, 20))
+```
+### Variables Más Destacadas
+Finalmente, visualizamos las variables más destacadas según sus contribuciones a los ejes PC1 y PC2. Esto nos permite identificar qué variables tienen mayor peso en las primeras dos componentes principales.
+```{r}
+fviz_contrib(pca, choice = "var", axes = 1, top = 10)
+fviz_contrib(pca, choice = "var", axes = 2, top = 10)
+```
+## Creación de Gráficos de los Componentes Principales
+Para visualizar y entender mejor los resultados del Análisis de Componentes Principales (PCA), generamos gráficos que nos permiten observar las relaciones entre las observaciones y las variables.
+
+### Gráfico de las Dos Primeras Componentes Principales
+Primero, creamos un gráfico para visualizar las observaciones en el espacio definido por las dos primeras componentes principales. Esto nos ayuda a entender cómo se agrupan las observaciones.
+```{r}
+fviz_pca_ind(pca, geom.ind = "point", 
+             col.ind = "blue", 
+             axes = c(1, 2), 
+             pointsize = 1.5) 
+```
+### Gráfico de Correlación de Variables
+Luego, visualizamos el gráfico de correlación de las variables con las componentes principales. Las flechas indican cómo cada variable contribuye a las dos principales componentes.
+```{r}
+fviz_pca_var(pca, col.var = "cos2", 
+             geom.var = "arrow", 
+             labelsize = 2, 
+             repel = FALSE)
+```
+### Creación de Dataframe de Scores del PCA
+Para trabajar con los resultados del PCA de manera más detallada, convertimos los scores de las componentes principales en un dataframe.
+```{r}
+scores_PCA_df <- as.data.frame(pca$x)
+```
+Visualizamos las primeras filas del dataframe para verificar su estructura.
+```{r}
+head(scores_PCA_df)
+```
+Y verificamos las dimensiones del dataframe para entender su tamaño.
+```{r}
+dim(scores_PCA_df)
+```
+### Creación de Terciles para Cada Componente Principal
+Para analizar la distribución de las observaciones en cada componente principal, dividimos los scores en terciles, lo que nos permite categorizar las observaciones en tres grupos según su posición en cada componente.
+```{r}
+componentes_terciles <- scores_PCA_df %>%
+  mutate(across(everything(), ~ ntile(., 3), .names = "tercil_{col}"))
+```
+Convertimos los terciles en factores para facilitar su análisis posterior.
+```{r}
+componentes_terciles_factor <- componentes_terciles %>%
+  mutate(across(starts_with("tercil_"), as.factor))
+```
+Verificamos las dimensiones del nuevo dataframe para asegurarnos de que la transformación se ha realizado correctamente.
+```{r}
+dim(componentes_terciles_factor)
+```
+### Visualización y Análisis de los Terciles
+Finalmente, visualizamos los factores de terciles para cada componente principal, lo que nos permite analizar cómo se distribuyen las observaciones en el espacio del PCA.
+```{r}
+View(componentes_terciles_factor)
+```
+Extraemos y visualizamos los factores de terciles específicamente para las primeras dos componentes principales (PC1 y PC2) para un análisis más detallado.
+```{r}
+terciles_factor_PC1 <- componentes_terciles_factor[151]
+terciles_factor_PC2 <- componentes_terciles_factor[152]
+
+View(terciles_factor_PC1)
+```
+## Análisis de Variables Sociodemográficas y su Relación con los Componentes Principales
+Para comprender mejor cómo las variables sociodemográficas se relacionan con los patrones identificados por el PCA, combinamos estas variables con los terciles de las componentes principales y generamos tablas resumen.
+
+### Estructura del Factor PC1
+Primero, examinamos la estructura del factor PC1 para entender cómo se ha codificado.
+```{r}
+str(terciles_factor_PC1)
+```
+### Visualización de los Datos Originales
+Para tener una referencia de los datos con los que estamos trabajando, visualizamos el conjunto de datos original.
+```{r}
+View(datos)
+```
+### Selección de Variables Sociodemográficas Continuas
+Seleccionamos variables sociodemográficas continuas de interés, como altura, peso, IMC (Índice de Masa Corporal), edad y METs por semana (una medida de actividad física).
+```{r}
+socio_continuas <- select(datos_limpios_norm, altura, peso, IMC, edad, METs_h_semana)
+```
+Visualizamos estas variables para verificar su selección.
+```{r}
+View(socio_continuas)
+```
+### Combinación de Variables Sociodemográficas con Terciles de PC1
+Combinamos las variables sociodemográficas seleccionadas con los terciles de PC1 para analizar su relación.
+```{r}
+socio_continuas_PC1 <- cbind(socio_continuas, terciles_factor_PC1)
+```
+Visualizamos el resultado de esta combinación para PC1.
+```{r}
+View(socio_continuas_PC1)
+```
+Verificamos la clase del dataframe resultante para asegurarnos de que sigue siendo adecuado para análisis.
+```{r}
+class(socio_continuas_PC1)
+```
+### Combinación con Terciles de PC2
+Realizamos el mismo proceso para combinar las variables sociodemográficas con los terciles de PC2.
+```{r}
+socio_continuas_PC2 <- cbind(socio_continuas, terciles_factor_PC2)
+```
+Visualizamos el resultado de esta combinación para PC2.
+```{r}
+View(socio_continuas_PC2)
+```
+### Creación de Tabla Resumen para PC1
+Generamos una tabla resumen para las variables sociodemográficas según los terciles de PC1. Esta tabla incluye estadísticas descriptivas y pruebas de significancia para identificar diferencias entre los grupos.
+```{r}
+tabla_resumen_PC1 <- socio_continuas_PC1 %>%
+  select(tercil_PC1, altura, peso, IMC, edad, METs_h_semana) %>%
+  tbl_summary(
+    by = tercil_PC1, 
+    type = list(altura ~ "continuous",
+                peso ~ "continuous",
+                IMC ~ "continuous",
+                edad ~ "continuous",
+                METs_h_semana ~ "continuous"),
+    statistic = list(all_continuous() ~ "{mean} ({sd})")
+  ) %>%
+  add_p(
+    test = all_continuous() ~ "kruskal.test", # Buscar el valor p usando la prueba de Kruskal-Wallis
+    pvalue_fun = ~ style_pvalue(.x, digits = 3)) %>%
+  modify_header(label = "**Variables**") %>%
+  modify_header(all_stat_cols() ~ "**T**")
+```
+Visualizamos la tabla resumen para PC1 para interpretar las diferencias entre los terciles en términos de las variables sociodemográficas.
+```{r}
+tabla_resumen_PC1
+```
+
+## Creación y Unión de Tablas Resumen para Componentes Principales (PC1 y PC2)
+Este proceso implica la creación de una tabla resumen para el segundo componente principal (PC2) de un conjunto de datos, seguido de la unión de esta tabla con una previamente creada para el primer componente principal (PC1), resultando en una tabla final que resume ambas.
+
+### Creación de la Tabla Resumen para PC2
+Selección de Variables: Seleccionamos las variables tercil_PC2, altura, peso, IMC, edad, y METs_h_semana del dataframe socio_continuas_PC2.
+
+Uso de tbl_summary: Utilizamos la función tbl_summary para crear una tabla resumen que agrupa los datos por tercil_PC2 y calcula estadísticas descriptivas (media y desviación estándar) para las variables continuas seleccionadas.
+
+Prueba de Kruskal-Wallis: Añadimos los resultados de la prueba de Kruskal-Wallis para evaluar diferencias estadísticas entre los terciles de PC2 para cada variable continua.
+
+Modificación de Encabezados: Modificamos los encabezados de la tabla para mejorar su presentación.
+```{r}
+tabla_resumen_PC2 <- socio_continuas_PC2 %>%
+  select(tercil_PC2, altura, peso, IMC, edad, METs_h_semana) %>%
+  tbl_summary(
+    by = tercil_PC2, 
+    type = list(
+      altura ~ "continuous",
+      peso ~ "continuous",
+      IMC ~ "continuous",
+      edad ~ "continuous",
+      METs_h_semana ~ "continuous"
+    ),
+    statistic = list(all_continuous() ~ "{mean} ({sd})")
+  ) %>%
+  add_p(
+    test = all_continuous() ~ "kruskal.test", 
+    pvalue_fun = ~ style_pvalue(.x, digits = 3)
+  ) %>%
+  modify_header(label = "Variables") %>%
+  modify_header(all_stat_cols() ~ "T")
+```
+### Visualización de la Tabla Resumen para PC2
+Para visualizar la tabla resumen creada para PC2, simplemente la llamamos por su nombre:
+```{r}
+tabla_resumen_PC2
+```
+## Unión de las Tablas Resumen para PC1 y PC2
+Uso de tbl_merge: Utilizamos la función tbl_merge para combinar las tablas resumen de PC1 y PC2 en una sola tabla final.
+
+Añadir Spanners: Añadimos spanners (encabezados superiores) para indicar claramente cuáles columnas pertenecen a PC1 y cuáles a PC2.
+```{r}
+tabla_final <- tbl_merge(
+  tbls = list(tabla_resumen_PC1, tabla_resumen_PC2),
+  tab_spanner = c("PC1", "PC2")
+)
+```
+### Visualización de la Tabla Final
+Para visualizar la tabla final que combina las tablas resumen de PC1 y PC2, la llamamos por su nombre:
+```{r}
+tabla_final
+```
+
+# Análisis de Regresión Logística para Explorar la Relación entre Variables Sociodemográficas, Componentes Principales y Diabetes
+Este análisis tiene como objetivo explorar cómo las variables sociodemográficas y los patrones dietéticos identificados a través de los componentes principales (PC1 y PC2) se relacionan con la presencia de diabetes. Para ello, realizamos una regresión logística.
+
+## Preparación de Datos para la Regresión Logística
+Selección y Conversión de la Variable de Diabetes: Seleccionamos la columna correspondiente a la presencia previa de diabetes y la convertimos en un factor binario para su uso en la regresión logística.
+
+### Selección y Conversión de la Variable de Diabetes:
+Seleccionamos la columna correspondiente a la presencia previa de diabetes y la convertimos en un factor binario para su uso en la regresión logística.
+```{r}
+col_diabetes <- select(datos_limpios, diab_prev)
+col_diabetes_factor <- as.factor(col_diabetes$diab_prev)
+```
+### Estructura y Primeras Filas del Factor de Diabetes:
+Examinamos la estructura del factor de diabetes y visualizamos las primeras filas para confirmar la correcta conversión.
+```{r}
+str(col_diabetes_factor)
+head(col_diabetes_factor)
+```
+### División en Terciles de Variables Sociodemográficas:
+Dividimos las variables sociodemográficas continuas en terciles para facilitar su análisis en relación con la diabetes.
+```{r}
+terciles_socio_continuas <- socio_continuas %>%
+  mutate(
+    altura = ntile(altura, 3),
+    peso = ntile(peso, 3),
+    IMC = ntile(IMC, 3),
+    edad = ntile(edad, 3),
+    METs_h_semana = ntile(METs_h_semana, 3)
+  )
+```
+### Creación del DataFrame para Regresión: 
+Combinamos las variables de interés en un nuevo dataframe que será utilizado para la regresión logística.
+```{r}
+datos_regresion <- cbind(terciles_socio_continuas, terciles_factor_PC1, terciles_factor_PC2)
+```
+## Ejecución de la Regresión Logística
+Realizamos una regresión logística para evaluar la relación entre la presencia de diabetes (variable dependiente) y las variables sociodemográficas junto con los terciles de los componentes principales (variables independientes).
+```{r}
+modelo_logistico <- glm(col_diabetes_factor ~ tercil_PC1 + tercil_PC2 + edad + peso + IMC + METs_h_semana, 
+                        family = binomial,
+                        data = datos_regresion)
+```
+## Interpretación de Resultados
+### Resumen del Modelo: 
+Examinamos el resumen del modelo para entender la significancia de las variables y su relación con la presencia de diabetes.
+```{r}
+summary(modelo_logistico)
+```
+### Intervalos de Confianza de los Coeficientes: 
+Calculamos los intervalos de confianza para los coeficientes del modelo para evaluar la precisión de las estimaciones.
+```{r}
+confint(modelo_logistico)
+```
+### Odds Ratios (OR): 
+Convertimos los coeficientes del modelo en Odds Ratios para interpretar la magnitud del efecto de cada variable sobre la probabilidad de tener diabetes.
+```{r}
+exp(modelo_logistico$coefficients)
+```
+### Intervalos de Confianza para las Odds Ratios: 
+Calculamos los intervalos de confianza para las Odds Ratios para evaluar la precisión de estas estimaciones.
+```{r}
+exp(confint(modelo_logistico))
+```
+
