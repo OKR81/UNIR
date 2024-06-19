@@ -1,4 +1,4 @@
-Conclusiones
+# Conclusiones
 
 En primer lugar, el **análisis de la normalidad** de las variables alimentos y nutrientes nos indica que no siguen una distribución Normal (algo esperable por los datos en sí).
 
