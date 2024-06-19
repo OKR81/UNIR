@@ -1,5 +1,14 @@
 # UNIR
-<<<<<<< HEAD
+
+Caso Practiico de R
+
+Este repositorio va a ser usado por el grupo compuesto por:
+
+- Óscar Núñez López
+- María García Ribas
+- Consuelo Azaña García
+Tendrá fines didáticos y de aprendizaje; para ello iremos subiendo y modificando un Ejercicio Práctico basado en programación R de forma colaborativa.
+
 # Proyecto de Análisis Bioinformático
 
 ## Propósito del Proyecto
@@ -58,12 +67,5 @@ El propósito de este proyecto es analizar cómo ciertas variables sociodemográ
     - Destacar los puntos clave y las interpretaciones relevantes para facilitar la comprensión y discusión.
 =======
 
-Caso Practiico de R
 
-Este repositorio va a ser usado por el grupo compuesto por:
-
-Óscar Núñez López
-María García Ribas
-Consuelo Azaña García
-Tendrá fines didáticos y de aprendizaje; para ello iremos subiendo y modificando un Ejercicio Práctico basado en programación R de forma colaborativa.
 >>>>>>> 6cce5cf8774876ddf5118ea532eae843b5cb86a7
